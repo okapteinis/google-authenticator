@@ -6,7 +6,7 @@ Plugin Name: Google Authenticator
 Plugin URI: https://github.com/ivankruchkoff/google-authenticator
 Description: Two-Factor Authentication for WordPress using the Android/iPhone/Blackberry app as One Time Password generator.
 Author: Ivan Kruchkoff
-Version: 0.54
+Version: 0.55
 Requires PHP: 8.0
 Requires at least: 5.6
 Tested up to: 6.7
@@ -157,7 +157,8 @@ function verify( string $secretkey, string $thistry, string $relaxedmode, string
 		// Only 32 bits
 		$value = $value & 0x7FFFFFFF;
 		$value = $value % 1000000;
-		if ( $value === $thistry ) {
+		// Use constant-time comparison to prevent timing attacks
+		if ( hash_equals( (string)$value, (string)$thistry ) ) {
 			// Check for replay (Man-in-the-middle) attack.
 			// Since this is not Star Trek, time can only move forward,
 			// meaning current login attempt has to be in the future compared to
@@ -177,12 +178,15 @@ function verify( string $secretkey, string $thistry, string $relaxedmode, string
  * Create a new random secret for the Google Authenticator app.
  * 16 characters, randomly chosen from the allowed Base32 characters
  * equals 10 bytes = 80 bits, as 256^10 = 32^16 = 2^80
+ *
+ * @return string Cryptographically secure random secret
  */
 function create_secret(): string {
     $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; // allowed characters in Base32
     $secret = '';
     for ( $i = 0; $i < 16; $i++ ) {
-        $secret .= substr( $chars, wp_rand( 0, strlen( $chars ) - 1 ), 1 );
+        // Use cryptographically secure random_int() instead of wp_rand()
+        $secret .= $chars[random_int( 0, strlen( $chars ) - 1 )];
     }
     return $secret;
 }
@@ -588,6 +592,18 @@ function check_otp( \WP_User|\WP_Error $user, string $username = '', string $pas
 	// Does the user have the Google Authenticator enabled ?
 	if ( isset( $user->ID ) && trim(get_user_option( 'googleauthenticator_enabled', $user->ID ) ) == 'enabled' ) {
 
+		// Rate limiting: max 5 attempts per 15 minutes
+		$attempts_key = 'ga_login_attempts_' . $user->ID;
+		$attempts = get_transient( $attempts_key );
+
+		if ( false === $attempts ) {
+			$attempts = 0;
+		}
+
+		if ( $attempts >= 5 ) {
+			return new \WP_Error( 'too_many_attempts', __( '<strong>ERROR</strong>: Too many failed authentication attempts. Please try again in 15 minutes.', 'google-authenticator' ) );
+		}
+
 		// Get the users secret
 		$GA_secret = trim( get_user_option( 'googleauthenticator_secret', $user->ID ) );
 		
@@ -606,6 +622,8 @@ function check_otp( \WP_User|\WP_Error $user, string $username = '', string $pas
 		if ( $timeslot = $this->verify( $GA_secret, $otp, $GA_relaxedmode, $lasttimeslot ) ) {
 			// Store the timeslot in which login was successful.
 			update_user_option( $user->ID, 'googleauthenticator_lasttimeslot', $timeslot, true );
+			// Clear failed attempts on success
+			delete_transient( $attempts_key );
 			return $userstate;
 		} else {
 			// No, lets see if an app password is enabled, and this is an XMLRPC / APP login ?
@@ -623,6 +641,9 @@ function check_otp( \WP_User|\WP_Error $user, string $username = '', string $pas
 					return new WP_Error( 'invalid_google_authenticator_password', __( '<strong>ERROR</strong>: The Google Authenticator password is incorrect.', 'google-authenticator' ) );
 				} 		 
 			} else {
+				// Increment failed attempts
+				set_transient( $attempts_key, $attempts + 1, 15 * MINUTE_IN_SECONDS );
+
 				if ( ! $this->is_two_screen_signin_enabled() ) {
 					return new WP_Error( 'invalid_google_authenticator_token', __( '<strong>ERROR</strong>: The Google Authenticator code is incorrect or has expired.', 'google-authenticator' ) );
 				} else {
@@ -893,11 +914,11 @@ function personal_options_update(): void {
 
 
 	$GA_enabled	= ! empty( $_POST['GA_enabled'] );
-	$GA_description	= trim( sanitize_text_field($_POST['GA_description'] ) );
+	$GA_description	= trim( sanitize_text_field($_POST['GA_description'] ?? '' ) );
 	$GA_relaxedmode	= ! empty( $_POST['GA_relaxedmode'] );
-	$GA_secret	= trim( $_POST['GA_secret'] );
+	$GA_secret	= trim( sanitize_text_field( $_POST['GA_secret'] ?? '' ) );
 	$GA_pwdenabled	= ! empty( $_POST['GA_pwdenabled'] );
-	$GA_password	= str_replace(' ', '', trim( $_POST['GA_password'] ) );
+	$GA_password	= str_replace(' ', '', sanitize_text_field( trim( $_POST['GA_password'] ?? '' ) ) );
 	
 	if ( ! $GA_enabled ) {
 		$GA_enabled = 'disabled';
@@ -991,23 +1012,26 @@ function edit_user_profile_update(): void {
 
 
 /**
-* AJAX callback function used to generate new secret
-*/
+ * AJAX callback function used to generate new secret
+ *
+ * @return void
+ */
 function ajax_callback(): void {
-	global $user_id;
-
-	// Some AJAX security.
+	// AJAX security check
 	check_ajax_referer( 'GoogleAuthenticatoraction', 'nonce' );
-	
-	// Create new secret.
+
+	// Capability check - ensure user has permission
+	if ( ! current_user_can( 'read' ) ) {
+		wp_send_json_error( array(
+			'message' => __( 'Insufficient permissions', 'google-authenticator' )
+		) );
+	}
+
+	// Create new secret
 	$secret = $this->create_secret();
 
-	$result = array( 'new-secret' => $secret );
-	header( 'Content-Type: application/json' );
-	echo json_encode( $result );
-
-	// die() is required to return a proper result
-	die(); 
+	// Send JSON response (wp_send_json_success handles die() automatically)
+	wp_send_json_success( array( 'new-secret' => $secret ) );
 }
 
 } // end class

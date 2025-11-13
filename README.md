@@ -9,7 +9,7 @@ Tested up to: 6.7
 
 Requires PHP: 8.0
 
-Stable tag: 0.54
+Stable tag: 0.55
 
 License: GPLv2 or later
 
@@ -90,6 +90,17 @@ Yes, the Man-in-the-middle attack/replay detection code isn't compatible with th
 4. Google Authenticator app on Android
 
 ## Changelog ##
+**0.55**
+* SECURITY: Replace wp_rand() with cryptographically secure random_int() in secret generation
+* SECURITY: Implement constant-time comparison using hash_equals() to prevent timing attacks
+* SECURITY: Add rate limiting (5 attempts per 15 minutes) to prevent brute force attacks
+* SECURITY: Add capability checks to AJAX handlers
+* SECURITY: Remove error suppression operators in Base32 decoder with proper bounds checking
+* SECURITY: Use server-side sessions instead of hidden form fields for credentials in two-screen signin
+* Improve input sanitization throughout the plugin
+* Add comprehensive SECURITY.md documentation
+* Tested with ClassicPress and PHP 8.4.1
+
 **0.54**
 * PHP 8.4 compatibility update
 * Add strict type declarations to all PHP files
