@@ -61,7 +61,7 @@ class GoogleAuthenticator {
 
 static ?GoogleAuthenticator $instance = null; // to store a reference to the plugin, allows other plugins to remove actions
 const SETUP_PAGE = 'google_authenticator_user_page';
-protected ?\WP_Error $error_message = null;
+protected $error_message = null;
 
 /**
  * Constructor, entry point of the plugin
@@ -140,6 +140,9 @@ function verify( string $secretkey, string $thistry, string $relaxedmode, string
 
 	$tm = floor( time() / 30 );
 
+	if ( ! class_exists( 'Base32' ) ) {
+		return false;
+	}
 	$secretkey=Base32::decode($secretkey);
 	// Keys from 30 seconds before and after are valid aswell.
 	for ($i=$firstcount; $i<=$lastcount; $i++) {
@@ -388,7 +391,7 @@ function user_setup_page(): void {
  * @param $is_network
  */
 function save_submitted_admin_setup_page( bool $is_network ): bool {
-	$nonce = filter_input( INPUT_POST, 'googleauthenticator', FILTER_SANITIZE_STRING );
+	$nonce = sanitize_text_field( $_POST['googleauthenticator'] ?? '' );
 	if ( wp_verify_nonce( $nonce, 'googleauthenticator' ) ) {
 		if ( $is_network ) {
 			$network_settings_only = array_key_exists( 'network_settings_only', $_POST );
@@ -574,10 +577,13 @@ function loginfooter(): void {
 /**
  * Login form handling.
  * Check Google Authenticator verification code, if user has been setup to do so.
- * @param wordpressuser / WP_Error
- * @return user/loginstatus
+ *
+ * @param null|\WP_User|\WP_Error $user WordPress user object, error object, or null
+ * @param string $username Username or email
+ * @param string $password Password
+ * @return null|\WP_User|\WP_Error User object on success, error on failure, or null to continue
  */
-function check_otp( \WP_User|\WP_Error $user, string $username = '', string $password = '' ): \WP_User|\WP_Error {
+function check_otp( null|\WP_User|\WP_Error $user, string $username = '', string $password = '' ): null|\WP_User|\WP_Error {
 	// Store result of loginprocess, so far.
 	$userstate = $user;
 
@@ -1036,5 +1042,8 @@ function ajax_callback(): void {
 
 } // end class
 
-$google_authenticator = new GoogleAuthenticator;
+// Defer plugin instantiation to plugins_loaded hook
+add_action( 'plugins_loaded', function(): void {
+	new GoogleAuthenticator();
+} );
 
