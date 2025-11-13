@@ -1,12 +1,16 @@
 <?php
+declare(strict_types=1);
+
 /*
 Plugin Name: Google Authenticator
 Plugin URI: https://github.com/ivankruchkoff/google-authenticator
 Description: Two-Factor Authentication for WordPress using the Android/iPhone/Blackberry app as One Time Password generator.
 Author: Ivan Kruchkoff
-Version: 0.53
+Version: 0.54
+Requires PHP: 8.0
+Requires at least: 5.6
+Tested up to: 6.7
 Author URI: https://github.com/ivankruchkoff
-Compatibility: WordPress 5.6
 Text Domain: google-authenticator
 Domain Path: /lang
 
@@ -55,14 +59,14 @@ Domain Path: /lang
 
 class GoogleAuthenticator {
 
-static $instance; // to store a reference to the plugin, allows other plugins to remove actions
+static ?GoogleAuthenticator $instance = null; // to store a reference to the plugin, allows other plugins to remove actions
 const SETUP_PAGE = 'google_authenticator_user_page';
-protected $error_message = null;
+protected ?\WP_Error $error_message = null;
 
 /**
  * Constructor, entry point of the plugin
  */
-function __construct() {
+function __construct(): void {
     self::$instance = $this;
     add_action( 'init', array( $this, 'init' ) );
 }
@@ -70,7 +74,7 @@ function __construct() {
 /**
  * Initialization, Hooks, and localization
  */
-function init() {
+function init(): void {
 	if ( ! class_exists( 'Base32' ) ) {
 		require_once( 'base32.php' );
 	}
@@ -108,7 +112,7 @@ function init() {
  *
  * @return bool
  */
-function is_two_screen_signin_enabled() {
+function is_two_screen_signin_enabled(): bool {
 	$two_screen_mfa = is_multisite() ? get_site_option( 'googleauthenticator_two_screen_signin' ) : get_option( 'googleauthenticator_two_screen_signin' );
 	return !! $two_screen_mfa;
 }
@@ -117,7 +121,7 @@ function is_two_screen_signin_enabled() {
  * Check the verification code entered by the user.
  */
 
-function verify( $secretkey, $thistry, $relaxedmode, $lasttimeslot ) {
+function verify( string $secretkey, string $thistry, string $relaxedmode, string $lasttimeslot ): int|false {
 	// Did the user enter 6 digits ?
 	if ( strlen( $thistry ) != 6) {
 		return false;
@@ -173,8 +177,8 @@ function verify( $secretkey, $thistry, $relaxedmode, $lasttimeslot ) {
  * Create a new random secret for the Google Authenticator app.
  * 16 characters, randomly chosen from the allowed Base32 characters
  * equals 10 bytes = 80 bits, as 256^10 = 32^16 = 2^80
- */ 
-function create_secret() {
+ */
+function create_secret(): string {
     $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; // allowed characters in Base32
     $secret = '';
     for ( $i = 0; $i < 16; $i++ ) {
@@ -186,7 +190,7 @@ function create_secret() {
 /**
  * Add the script to generate QR codes.
  */
-function add_qrcode_script() {
+function add_qrcode_script(): void {
     wp_enqueue_script('jquery');
     wp_register_script('qrcode_script', plugins_url('jquery.qrcode.min.js', __FILE__),array("jquery"));
     wp_enqueue_script('qrcode_script');
@@ -195,7 +199,7 @@ function add_qrcode_script() {
 /**
  * Add 2fa pages to menus
  */
-function add_pages() {
+function add_pages(): void {
 	// No menu entry for this page
 	add_submenu_page( '', esc_html__( 'Google Authenticator', 'google-authenticator' ), null, 'read', self::SETUP_PAGE, array( $this, 'user_setup_page' ) );
 
@@ -210,7 +214,7 @@ function add_pages() {
  * Determine if a user needs to setup authy 2fa
  * @return bool
  */
-function user_needs_to_setup_google_authenticator() {
+function user_needs_to_setup_google_authenticator(): bool {
 	$user = wp_get_current_user();
 	$enabled = trim(get_user_option( 'googleauthenticator_enabled', $user->ID ) ) === 'enabled';
 	if ( $enabled ) {
@@ -243,7 +247,7 @@ function user_needs_to_setup_google_authenticator() {
 /**
  * Send users to the signup page if they must signup.
  */
-function redirect_if_setup_required() {
+function redirect_if_setup_required(): void {
 	if ( $this->user_needs_to_setup_google_authenticator() ) {
 		$screen = get_current_screen();
 		$pagename = 'admin_page_' . self::SETUP_PAGE;
@@ -262,7 +266,7 @@ function redirect_if_setup_required() {
  * Save the GA secret if valid totp is provided
  * @return void
  */
-function save_submitted_setup_page() {
+function save_submitted_setup_page(): void {
 	$this->error_message = null; // Reset a previous error message if it was set
 	$user = wp_get_current_user();
 	$secret = empty( $_POST['GA_secret'] ) ? false : sanitize_text_field( $_POST['GA_secret']);
@@ -287,7 +291,7 @@ function save_submitted_setup_page() {
 /**
  * Show the user a success message after we redirect them following successful google authenticator setup
  */
-function successful_signup_message() {
+function successful_signup_message(): void {
 	if ( ! empty( $_GET['googleauthenticator'] ) && 'enabled' === $_GET['googleauthenticator'] ) : ?>
 		<div class="updated notice">
 			<p><?php esc_html_e( 'Congratulations, you have successfully enabled Google Authenticator for your account', 'google-authenticator' ); ?></p>
@@ -299,7 +303,7 @@ function successful_signup_message() {
 /**
  * Callback function to render the google authenticator setup page
  */
-function user_setup_page() {
+function user_setup_page(): void {
 	$user = wp_get_current_user();
 	$enabled = trim(get_user_option( 'googleauthenticator_enabled', $user->ID ) ) === 'enabled';
 	if ( $enabled ) {
@@ -379,7 +383,7 @@ function user_setup_page() {
  * Save site / network wide settings
  * @param $is_network
  */
-function save_submitted_admin_setup_page( $is_network ) {
+function save_submitted_admin_setup_page( bool $is_network ): bool {
 	$nonce = filter_input( INPUT_POST, 'googleauthenticator', FILTER_SANITIZE_STRING );
 	if ( wp_verify_nonce( $nonce, 'googleauthenticator' ) ) {
 		if ( $is_network ) {
@@ -412,12 +416,13 @@ function save_submitted_admin_setup_page( $is_network ) {
 		}
 		return true;
 	}
+	return false;
 }
 
 /**
  * Callback function to render the google authenticator setup page
  */
-function common_admin_setup_page( $is_network = false ) {
+function common_admin_setup_page( bool $is_network = false ): void {
 	if ( $is_network ) {
 		$site_ids = get_sites( 'fields=ids' );
 		$roles = get_editable_roles();
@@ -488,7 +493,7 @@ function common_admin_setup_page( $is_network = false ) {
  * @param $role
  * @param $is_network
  */
-function show_role_checkbox( $role_key, $role, $is_network ) {
+function show_role_checkbox( string $role_key, array $role, bool $is_network ): void {
 	$network_roles = get_site_option( 'googleauthenticator_mandatory_mfa_roles', array() );
 	$network_only = is_multisite() && boolval( get_site_option( 'googleauthenticator_network_only' ) );
 	$roles = get_option( 'googleauthenticator_mandatory_mfa_roles', array() );
@@ -527,7 +532,7 @@ function show_role_checkbox( $role_key, $role, $is_network ) {
 /**
  * Admin setup screen
  */
-function admin_setup_page() {
+function admin_setup_page(): void {
 	$this->common_admin_setup_page();
 
 }
@@ -535,13 +540,13 @@ function admin_setup_page() {
 /**
  * Network admin setup screen
  */
-function network_admin_setup_page() {
+function network_admin_setup_page(): void {
 	$this->common_admin_setup_page( true );
 }
 /**
  * Add verification code field to login form.
  */
-function loginform() {
+function loginform(): void {
     echo "\t<p>\n";
     echo "\t\t<label title=\"".__('If you don\'t have Google Authenticator enabled for your WordPress account, leave this field empty.','google-authenticator')."\">".__('Google Authenticator code','google-authenticator')."<span id=\"google-auth-info\"></span><br />\n";
     echo "\t\t<input type=\"text\" name=\"googleotp\" id=\"googleotp\" class=\"input\" value=\"\" size=\"20\" style=\"ime-mode: inactive;\" autocomplete=\"off\" /></label>\n";
@@ -554,7 +559,7 @@ function loginform() {
 /**
  * Disable autocomplete on Google Authenticator code input field.
  */
-function loginfooter() {
+function loginfooter(): void {
     echo "\n<script type=\"text/javascript\">\n";
     echo "\ttry{\n";
     echo "\t\tdocument.getElementById('user_email').setAttribute('autocomplete','off');\n";
@@ -568,7 +573,7 @@ function loginfooter() {
  * @param wordpressuser / WP_Error
  * @return user/loginstatus
  */
-function check_otp( $user, $username = '', $password = '' ) {
+function check_otp( \WP_User|\WP_Error $user, string $username = '', string $password = '' ): \WP_User|\WP_Error {
 	// Store result of loginprocess, so far.
 	$userstate = $user;
 
@@ -633,7 +638,7 @@ function check_otp( $user, $username = '', $password = '' ) {
 	return $userstate;
 }
 
-function secondary_login_screen() {
+function secondary_login_screen(): void {
 	$redirect_to = isset( $_REQUEST['redirect_to'] ) ? $_REQUEST['redirect_to'] : admin_url();
 	login_header( esc_html__('Secondary Login Screen', 'google-authenticator' ) );
 	if ( array_key_exists( 'googleotp', $_REQUEST ) ) {
@@ -667,7 +672,7 @@ function secondary_login_screen() {
 /**
  * Extend personal profile page with Google Authenticator settings.
  */
-function profile_personal_options( $args = array() ) {
+function profile_personal_options( array $args = array() ): void {
 	$defaults = array(
 		'show_active' => true,
 		'show_relaxed_mode' => true,
@@ -879,7 +884,7 @@ ENDOFJS;
 /**
  * Form handling of Google Authenticator options added to personal profile page (user editing his own profile)
  */
-function personal_options_update() {
+function personal_options_update(): void {
 	global $user_id;
 
 	// If editing of Google Authenticator settings has been disabled, just return
@@ -932,7 +937,7 @@ function personal_options_update() {
  * Extend profile page with ability to enable/disable Google Authenticator authentication requirement.
  * Used by an administrator when editing other users.
  */
-function edit_user_profile() {
+function edit_user_profile(): void {
 	global $user_id;
 	$GA_enabled      = trim( get_user_option( 'googleauthenticator_enabled', $user_id ) );
 	$GA_hidefromuser = trim( get_user_option( 'googleauthenticator_hidefromuser', $user_id ) );
@@ -961,7 +966,7 @@ function edit_user_profile() {
 /**
  * Form handling of Google Authenticator options on edit profile page (admin user editing other user)
  */
-function edit_user_profile_update() {
+function edit_user_profile_update(): void {
 	global $user_id;
 	
 	$GA_enabled	     = ! empty( $_POST['GA_enabled'] );
@@ -988,7 +993,7 @@ function edit_user_profile_update() {
 /**
 * AJAX callback function used to generate new secret
 */
-function ajax_callback() {
+function ajax_callback(): void {
 	global $user_id;
 
 	// Some AJAX security.
