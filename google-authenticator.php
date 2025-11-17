@@ -1,12 +1,16 @@
 <?php
+declare(strict_types=1);
+
 /*
 Plugin Name: Google Authenticator
 Plugin URI: https://github.com/ivankruchkoff/google-authenticator
 Description: Two-Factor Authentication for WordPress using the Android/iPhone/Blackberry app as One Time Password generator.
 Author: Ivan Kruchkoff
-Version: 0.54-security
+Version: 0.56
+Requires PHP: 8.0
+Requires at least: 5.6
+Tested up to: 6.7
 Author URI: https://github.com/ivankruchkoff
-Compatibility: WordPress 5.6
 Text Domain: google-authenticator
 Domain Path: /lang
 
