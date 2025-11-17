@@ -71,14 +71,11 @@ class Base32 {
             $x = "";
             if(!in_array($input[$i], self::$map)) return false;
             for($j=0; $j < 8; $j++) {
-                // Proper bounds checking instead of error suppression
-                if ( ! isset( $input[$i + $j] ) ) {
-                    continue;
-                }
-                if ( ! isset( self::$flippedMap[$input[$i + $j]] ) ) {
-                    return false;
-                }
-                $x .= str_pad(base_convert(self::$flippedMap[$input[$i + $j]], 10, 2), 5, '0', STR_PAD_LEFT);
+                // Safely access array elements without error suppression
+                $char_value = isset($input[$i + $j]) && isset(self::$flippedMap[$input[$i + $j]])
+                    ? self::$flippedMap[$input[$i + $j]]
+                    : 0;
+                $x .= str_pad(base_convert($char_value, 10, 2), 5, '0', STR_PAD_LEFT);
             }
             $eightBits = str_split($x, 8);
             for($z = 0; $z < count($eightBits); $z++) {
