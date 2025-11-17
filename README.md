@@ -3,11 +3,13 @@ Contributors: ivankk
 
 Tags: authentication, otp, password, security, login, android, iphone, blackberry
 
-Requires at least: 4.5
+Requires at least: 5.6
 
-Tested up to: 5.6
+Tested up to: 6.7
 
-Stable tag: 0.53
+Requires PHP: 8.0
+
+Stable tag: 0.55
 
 License: GPLv2 or later
 
@@ -24,6 +26,8 @@ If you are security aware, you may already have the Google Authenticator app ins
 The two-factor authentication requirement can be enabled on a per-user basis. You could enable it for your administrator account, but log in as usual with less privileged accounts.
 
 If You need to maintain your blog using an Android/iPhone app, or any other software using the XMLRPC interface, you can enable the App password feature in this plugin, but please note that enabling the App password feature will make your blog less secure.
+
+**PHP 8.4 Compatible:** This plugin has been updated and fully tested with PHP 8.4.1 and WordPress 6.7. It includes strict type declarations and modern PHP coding standards for improved reliability and performance.
 
 ## Installation ##
 1. Make sure your webhost is capable of providing accurate time information for PHP/WordPress, ie. make sure a NTP daemon is running on the server.
@@ -86,6 +90,26 @@ Yes, the Man-in-the-middle attack/replay detection code isn't compatible with th
 4. Google Authenticator app on Android
 
 ## Changelog ##
+**0.55**
+* SECURITY: Replace wp_rand() with cryptographically secure random_int() in secret generation
+* SECURITY: Implement constant-time comparison using hash_equals() to prevent timing attacks
+* SECURITY: Add rate limiting (5 attempts per 15 minutes) to prevent brute force attacks
+* SECURITY: Add capability checks to AJAX handlers
+* SECURITY: Remove error suppression operators in Base32 decoder with proper bounds checking
+* SECURITY: Use server-side sessions instead of hidden form fields for credentials in two-screen signin
+* Improve input sanitization throughout the plugin
+* Add comprehensive SECURITY.md documentation
+* Tested with ClassicPress and PHP 8.4.1
+
+**0.54**
+* PHP 8.4 compatibility update
+* Add strict type declarations to all PHP files
+* Fix deprecated dynamic properties in classes
+* Update function signatures with proper type hints
+* Update plugin metadata for PHP 8.0+ requirement
+* Tested with PHP 8.4.1 and WordPress 6.7
+* Code modernization and security improvements
+
 **0.53**
 * Add a Polish translation
 

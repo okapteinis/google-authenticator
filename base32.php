@@ -1,8 +1,9 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Encode in Base32 based on RFC 4648.
- * Requires 20% more space than base64 
+ * Requires 20% more space than base64
  * Great for case-insensitive filesystems like Windows and URL's  (except for = char which can be excluded using the pad option for urls)
  *
  * @package default
@@ -10,7 +11,7 @@
  **/
 class Base32 {
 
-   private static $map = array(
+   private static array $map = array(
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', //  7
         'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', // 15
         'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', // 23
@@ -18,7 +19,7 @@ class Base32 {
         '='  // padding char
     );
    
-   private static $flippedMap = array(
+   private static array $flippedMap = array(
         'A'=>'0', 'B'=>'1', 'C'=>'2', 'D'=>'3', 'E'=>'4', 'F'=>'5', 'G'=>'6', 'H'=>'7',
         'I'=>'8', 'J'=>'9', 'K'=>'10', 'L'=>'11', 'M'=>'12', 'N'=>'13', 'O'=>'14', 'P'=>'15',
         'Q'=>'16', 'R'=>'17', 'S'=>'18', 'T'=>'19', 'U'=>'20', 'V'=>'21', 'W'=>'22', 'X'=>'23',
@@ -31,7 +32,7 @@ class Base32 {
      * @return base32 encoded string
      * @author Bryan Ruiz
      **/
-    public static function encode($input, $padding = true) {
+    public static function encode(string $input, bool $padding = true): string {
         if(empty($input)) return "";
         $input = str_split($input);
         $binaryString = "";
@@ -54,7 +55,7 @@ class Base32 {
         return $base32;
     }
    
-    public static function decode($input) {
+    public static function decode(string $input): string|false|null {
         if(empty($input)) return;
         $paddingCharCount = substr_count($input, self::$map[32]);
         $allowedValues = array(6,4,3,1,0);
