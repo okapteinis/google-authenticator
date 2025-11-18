@@ -237,7 +237,7 @@ function verify( string $secretkey, string $thistry, string $relaxedmode, string
  *
  * SECURITY: Uses random_int() for cryptographically secure randomness
  */
-function create_secret() {
+function create_secret(): string {
     $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; // allowed characters in Base32
     $secret = '';
     $chars_length = strlen( $chars );
@@ -452,7 +452,7 @@ function user_setup_page(): void {
  * Save site / network wide settings
  * @param $is_network
  */
-function save_submitted_admin_setup_page( $is_network ) {
+function save_submitted_admin_setup_page( $is_network ): bool {
 	$nonce = isset( $_POST['googleauthenticator'] ) ? sanitize_text_field( $_POST['googleauthenticator'] ) : '';
 	if ( wp_verify_nonce( $nonce, 'googleauthenticator' ) ) {
 		if ( $is_network ) {
@@ -784,7 +784,7 @@ function secondary_login_screen() {
 		} else {
 			$error_message = __( '<strong>ERROR</strong>: The Google Authenticator code is incorrect or has expired.', 'google-authenticator' );
 		}
-		echo '<div id="login_error">' . esc_html( $error_message ) . '</div>';
+		echo '<div id="login_error">' . wp_kses_post( $error_message ) . '</div>';
 	}
 	?>
 	<form name="loginform" id="loginform" action="<?php echo esc_url( site_url( 'wp-login.php', 'login_post' ) ); ?>" method="post">

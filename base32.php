@@ -71,10 +71,15 @@ class Base32 {
             $x = "";
             if(!in_array($input[$i], self::$map)) return false;
             for($j=0; $j < 8; $j++) {
-                // Safely access array elements without error suppression
-                $char_value = isset($input[$i + $j]) && isset(self::$flippedMap[$input[$i + $j]])
-                    ? self::$flippedMap[$input[$i + $j]]
-                    : 0;
+                // Validate each character - return false for invalid Base32 characters
+                if (isset($input[$i + $j])) {
+                    if (!isset(self::$flippedMap[$input[$i + $j]])) {
+                        return false; // Invalid Base32 character
+                    }
+                    $char_value = self::$flippedMap[$input[$i + $j]];
+                } else {
+                    $char_value = 0; // Padding for incomplete blocks
+                }
                 $x .= str_pad(base_convert($char_value, 10, 2), 5, '0', STR_PAD_LEFT);
             }
             $eightBits = str_split($x, 8);
